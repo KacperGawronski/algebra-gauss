@@ -3,10 +3,10 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include <float.h>
-
+#include <numpy/npy_math.h> 
 
 void swap_pointers(void **a, void **b){
-	void *tmp;
+	void **tmp;
 	tmp=a;
 	a=b;
 	b=tmp;
@@ -17,33 +17,49 @@ void swap_pointers(void **a, void **b){
 #define DATA_TYPE_DEFINE NPY_DOUBLE
 #define DATA_TYPE_EPSILON FLT_EPSILON
 
-
-struct npy_double_pair{
-	DATA_TYPE value;
-	int index;
-};
-
-
-npy_double_multply_matrixes(struct npy_double_pair *A[2],DATA_TYPE *data1, DATA_TYPE *result,int start){
+void npy_double_multiply_matrixes(DATA_TYPE *A,int **indexes,DATA_TYPE *data, DATA_TYPE *result,npy_intp *dims,int start){
+ 	int i,j,index;
+ 	if(start>0){
+		for(i=start-1;i<dims[1];++i){
+			if(i<dims[0])result[i*dims[1]+start-1]=data[i*dims[1]+start-1];
+			result[(start-1)*dims[1]+i]=data[(start-1)*dims[1]+i];
+		}
+	}
 	
-	
+	for(i=start;i<dims[1];++i){
+		result[start*dims[1]+i]=A[start]*data[indexes[0][start]*dims[1]+i];
+	}
+	for(j=start+1;j<dims[0];++j){
+		for(i=start;i<dims[1];++i){
+			result[j*dims[1]+i]=data[indexes[0][j]*dims[1]+i]+A[j]*data[indexes[1][j]*dims[1]+i];
+			//result[index]+=A[j]*data[indexes[1][j]*dims[1]+i];
+		}
+	}
 }
 
 
 PyObject* npy_double_eliminate(PyObject *raw_arr,PyObject *raw_vals){
 	int i,j,k,current_row,index;
-	npy_intp dims[2];
+	npy_intp dims[2],*result_dims;
 	DATA_TYPE *data1,*data2,*tmp_data;
-	struct npy_double_pair *A[2];
-	
-	
+	DATA_TYPE *A;
+	DATA_TYPE *swapper;
+	PyObject * result;
+	int *indexes[2];
 	dims[0]=PyArray_DIMS(raw_arr)[0];
 	dims[1]=PyArray_DIMS(raw_arr)[1]+1;
+	result_dims=PyDimMem_NEW(1);
+	result_dims[0]=dims[0];
+	result=PyArray_SimpleNew(1,result_dims,DATA_TYPE_DEFINE);
+
+	
+	
 	data1=malloc(sizeof(DATA_TYPE)*dims[0]*dims[1]);
 	data2=malloc(sizeof(DATA_TYPE)*dims[0]*dims[1]);
 	tmp_data=PyArray_DATA(raw_arr);
-	A[0]=malloc(sizeof(*A)*dims[0]);
-	A[1]=malloc(sizeof(*A)*dims[0]);
+	A=malloc(sizeof(*A)*dims[0]);
+	indexes[0]=malloc(sizeof(**indexes)*dims[0]);
+	indexes[1]=malloc(sizeof(**indexes)*dims[0]);
 	
 	for(i=0;i<dims[0];++i){
 		for(j=0;j<dims[0];++j){
@@ -65,32 +81,48 @@ PyObject* npy_double_eliminate(PyObject *raw_arr,PyObject *raw_vals){
 		
 			index=current_row*dims[1]+k;
 			if(current_row!=i){
-				A[0][i].value=1/data1[index];
-				A[0][i].index=current_row;
-				A[0][current_row].value=1;
-				A[0][current_row].index=i;
-				A[1][current_row].value=A[0][i].value*data1[i*dims[1]+k];
-				A[1][current_row].index=k;
+				A[i]=1/data1[index];
+				indexes[0][i]=current_row;
+				indexes[0][current_row]=i;
+				A[current_row]=-A[i]*data1[i*dims[1]+k];
+				indexes[1][current_row]=k;
 			}else{
+				A[i]=1/data1[index];
+				indexes[0][i]=i;
 			}
 			for(j=i+1;j<dims[0];++j){
 				if(j!=current_row){
-					A[0][j].value=1;
-					A[0][j].index=j;
-					A[1][j].value=A[0][i].value*data1[j*dims[1]+k];
-					A[1][j].index=current_row;
+					indexes[0][j]=j;
+					A[j]=-A[i]*data1[j*dims[1]+k];
+					indexes[1][j]=current_row;
 				}
 			}
-			npy_double_multiply_matrixes(A,data1,data2,i);
-			
+			npy_double_multiply_matrixes(A,indexes,data1,data2,dims,i);
+			swapper=data1;
+			data1=data2;
+			data2=swapper;
 		}else{
+			for(j=0;j<i;++j){
+				if(data1[j*dims[1]+k]>DATA_TYPE_EPSILON||data1[j*dims[1]+k]<-DATA_TYPE_EPSILON)return PyFloat_FromDouble(NPY_NAN);
+			}
 			--i;
 		}
 		k++;	
 	}
+	tmp_data=PyArray_DATA(result);
+	for(i=dims[0]-1;i>=0;--i){
+		tmp_data[i]=data1[(i+1)*dims[1]-1];
+		for(j=i-1;j>=0;--j){
+			data1[(j+1)*dims[1]-1]-=tmp_data[i]*data1[j*dims[1]+i];
+		}
+	}
 	
-	
-	return NULL;
+	free(data1);
+	free(data2);
+	free(A);
+	free(indexes[0]);
+	free(indexes[1]);
+	return result;
 	
 }
 

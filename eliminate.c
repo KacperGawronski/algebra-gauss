@@ -3,7 +3,8 @@
 #include "eliminate.h"
 #include "eliminate_simple.h"
 
- 
+
+
 PyObject* eliminate_cfunc (PyObject *dummy, PyObject *args){
 	PyObject *raw_arr,*raw_vals;
 	import_array();
