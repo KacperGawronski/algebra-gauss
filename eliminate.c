@@ -3,6 +3,7 @@
 #include "eliminate.h"
 
 
+
 void swap_pointers(void **a, void **b){
 	void **tmp;
 	tmp=a;
