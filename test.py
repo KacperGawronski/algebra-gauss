@@ -17,8 +17,9 @@ a1=np.random.random(h*h)
 a2=np.random.random(h*h)
 b1=np.random.random(h)
 b2=np.random.random(h)
-a=np.array(list(map(lambda x:complex(*x),zip(a1,a2)))).reshape(h,h)
-b=np.array(list(map(lambda x:complex(*x),zip(b1,b2)))).reshape(h)
+a=np.array(list(map(lambda x:complex(*x),zip(a1,a2))),dtype="clongdouble").reshape(h,h)
+b=np.array(list(map(lambda x:complex(*x),zip(b1,b2))),dtype="clongdouble").reshape(h)
+
+print(eliminate(a,b))
 
 print(np.linalg.solve(a,b))
-print(eliminate(a,b))
