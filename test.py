@@ -12,14 +12,17 @@ start=time()
 tmp=eliminate(a,b)
 print(time()-start)
 '''
-h=3
+h=2600
 a1=np.random.random(h*h)
 a2=np.random.random(h*h)
 b1=np.random.random(h)
 b2=np.random.random(h)
-a=np.array(list(map(lambda x:complex(*x),zip(a1,a2))),dtype="clongdouble").reshape(h,h)
-b=np.array(list(map(lambda x:complex(*x),zip(b1,b2))),dtype="clongdouble").reshape(h)
+a=np.array(list(map(lambda x:complex(*x),zip(a1,a2))),dtype="cdouble").reshape(h,h)
+b=np.array(list(map(lambda x:complex(*x),zip(b1,b2))),dtype="cdouble").reshape(h)
 
-print(eliminate(a,b))
-
-print(np.linalg.solve(a,b))
+start=time()
+eliminate(a,b)
+print(time()-start)
+start=time()
+np.linalg.solve(a,b)
+print(time()-start)
